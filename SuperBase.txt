@@ -1,7 +1,14 @@
 public object object::SafeGoto(point target)
 {
 	errmode(0);
-	while(goto(target) != 0) message("Unable to goto()", DisplayWarning);
+	bool first = true;
+	while(goto(target) != 0) {
+		if(first) {
+			message("Unable to goto()", DisplayWarning);
+			first = false;
+		}
+		move(-0.5);
+	}
 	errmode(1);
 }
 
@@ -20,7 +27,18 @@ public object object::SafeGrab(int cat)
 			drop();
 			Get(cat);
 		}
-	} while(this.load == null || this.load.category != cat);
+	} while(this.load == null);
+}
+
+public object object::SafeGrabCell()
+{
+	/*do {
+		grab();
+		if(this.load.category != PowerCell && this.load.category != NuclearCell) {
+			drop();
+		}
+	} while(this.load == null);*/
+	grab();
 }
 
 public object object::Get(int cat)
@@ -89,7 +107,9 @@ public object object::Build(int cat, float spaceRequired)
 	SafeGoto(space(item.position, spaceRequired));
 	drop();
 	build(cat);
-	return radar(cat);
+	item = radar(cat);
+	BatteryCheck();
+	return item;
 }
 
 public object object::Factory(object obj, int cat, string prog)
@@ -104,17 +124,245 @@ public object object::Factory(object obj, int cat, string prog)
 	obj.factory(cat, progfunc(prog));
 	Get(PowerCell);
 	SafeGoto(waitpoint);
-	while((item = radar(cat, 0, 90, 3, 7)) == null);
+	turn(direction(obj.position));
+	while((item = radar(cat, 0, 90, 3, 10)) == null);
 	wait(1);
 	Deposit(cat);
 	move(-10);
 	wait(2);
+	BatteryCheck();
 	return item;
 }
 
 public bool object::BatteryCheck()
 {
-	//TODO
+	if(this.energyCell != null) {
+		if(this.energyCell.energyLevel <= 0.3) {
+			bool result = Recharge();
+			if(!result) {
+				while(this.energyCell == null || this.energyCell.energyLevel <= 0.3) wait(1);
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
+public object object::GetBattery()
+{
+	object maxEnergyCell = null;
+	object zajeteBaterie[];
+	float maxEnergy = -1;
+	int j=0;
+	for(int i=0;i<500;i++) {
+		object item = retobject(i);
+		if(item != null) {
+			if(item.energyCell != null) {
+				zajeteBaterie[j] = item.energyCell;
+				j++;
+			}
+			if(item.load != null) {
+				if(item.load.category == PowerCell ||
+				   item.load.category == NuclearCell) {
+					zajeteBaterie[j] = item.load;
+					j++;
+				}
+			}
+		}
+	}
+	for(int i=0;i<500;i++) {
+		object item = retobject(i);
+		if(item != null) {
+			bool zajete = false;
+			for(int j=0;j<sizeof(zajeteBaterie);j++) {
+				if(item == zajeteBaterie[j]) {
+					zajete = true;
+					break;
+				}
+			}
+			if(zajete) continue;
+			if(item.category == NuclearCell && item.energyLevel*100>maxEnergy) {
+				maxEnergy = item.energyLevel*100;
+				maxEnergyCell = item;
+			}
+			if(item.category == PowerCell && item.energyLevel>maxEnergy) {
+				maxEnergy = item.energyLevel;
+				maxEnergyCell = item;
+			}
+		}
+	}
+	return maxEnergyCell;
+}
+
+public bool object::Recharge()
+{
+	point start = this.position;
+	 
+	if(this.energyCell.category == PowerCell) {
+		if(radar(PowerStation) != null) {
+			object item = radar(PowerStation);
+			SafeGoto(item.position);
+			while(this.energyCell.energyLevel < 1) wait(0.01);
+			SafeGoto(start);
+			return true;
+		}
+		if(radar(PowerCaptor) != null) {
+			object item = radar(PowerCaptor);
+			SafeGoto(item.position);
+			while(this.energyCell.energyLevel < 1) wait(0.01);
+			SafeGoto(start);
+			return true;
+		}
+	}
+	 
+	if(!(this.category == WheeledGrabber ||
+	     this.category == TrackedGrabber ||
+	     this.category == WingedGrabber ||
+	     this.category == LeggedGrabber ||
+	     this.category == Subber)) {
+		message("Unable to recharge", DisplayError);
+		return false;
+	}
+	 
+	if(this.category != Subber) {
+		object battery = GetBattery();
+		if(battery != null && battery.energyLevel > this.energyCell.energyLevel && ((battery.category == PowerCell && battery.energyLevel > 0.3) || (battery.category == NuclearCell && battery.energyLevel > 0.05))) {
+			SafeGoto(battery.position);
+			SafeGrabCell();
+			drop(Behind);
+			grab(EnergyCell);
+			drop(InFront);
+			grab(Behind);
+			drop(EnergyCell);
+			SafeGoto(start);
+			return true;
+		}
+		 
+		if(radar(NuclearPlant) != null) {
+			object plant = radar(NuclearPlant);
+			if(plant.energyCell != null) {
+				if(plant.energyCell.category == NuclearCell) {
+					SafeGoto(plant.position);
+					grab();
+					drop(Behind);
+					grab(EnergyCell);
+					drop(InFront);
+					grab(Behind);
+					drop(EnergyCell);
+					grab(InFront);
+					SafeGoto(space());
+					drop(InFront);
+					SafeGoto(start);
+					return true;
+				} else if(plant.energyCell.category == UraniumOre) {
+					SafeGoto(plant.position);
+					move(-3);
+					while(plant.energyCell.category != NuclearCell) wait(0.01);
+					move(3);
+					grab(InFront);
+					drop(Behind);
+					grab(EnergyCell);
+					drop(InFront);
+					grab(Behind);
+					drop(EnergyCell);
+					grab(InFront);
+					SafeGoto(space());
+					drop(InFront);
+					SafeGoto(start);
+					return true;
+				} else {
+					if(radar(UraniumOre) != null) {
+						SafeGoto(plant.position);
+						grab(InFront);
+						SafeGoto(space());
+						drop(InFront);
+					}
+				}
+			}
+			if(radar(UraniumOre) != null) {
+				object item = radar(UraniumOre);
+				SafeGoto(item.position);
+				SafeGrab(UraniumOre);
+				SafeGoto(plant.position);
+				drop(InFront);
+				move(-3);
+				while(plant.energyCell.category != NuclearCell) wait(0.01);
+				move(3);
+				grab(InFront);
+				drop(Behind);
+				grab(EnergyCell);
+				drop(InFront);
+				grab(Behind);
+				drop(EnergyCell);
+				grab(InFront);
+				SafeGoto(space());
+				drop(InFront);
+				SafeGoto(start);
+				return true;
+			}
+		}
+		 
+		if(radar(PowerPlant) != null) {
+			object plant = radar(PowerPlant);
+			if(plant.energyCell != null) {
+				if(plant.energyCell.category == PowerCell) {
+					SafeGoto(plant.position);
+					grab(InFront);
+					drop(Behind);
+					grab(EnergyCell);
+					drop(InFront);
+					grab(Behind);
+					drop(EnergyCell);
+					grab(InFront);
+					SafeGoto(space());
+					drop(InFront);
+					SafeGoto(start);
+					return true;
+				} else if(plant.energyCell.category == Titanium) {
+					SafeGoto(plant.position);
+					while(plant.energyCell.category != PowerCell) wait(0.01);
+					grab(InFront);
+					drop(Behind);
+					grab(EnergyCell);
+					drop(InFront);
+					grab(Behind);
+					drop(EnergyCell);
+					grab(InFront);
+					SafeGoto(space());
+					drop(InFront);
+					SafeGoto(start);
+					return true;
+				} else {
+					if(radar(Titanium) != null) {
+						SafeGoto(plant.position);
+						grab();
+						SafeGoto(space());
+						drop(InFront);
+					}
+				}
+			}
+			if(radar(Titanium) != null) {
+				object item = radar(Titanium);
+				SafeGoto(item.position);
+				SafeGrab(Titanium);
+				SafeGoto(plant.position);
+				drop(InFront);
+				while(plant.energyCell.category != PowerCell) wait(0.01);
+				grab(InFront);
+				drop(Behind);
+				grab(EnergyCell);
+				drop(InFront);
+				grab(Behind);
+				drop(EnergyCell);
+				grab(InFront);
+				SafeGoto(space());
+				drop(InFront);
+				SafeGoto(start);
+				return true;
+			}
+		}
+	}
+	message("Unable to charge", DisplayError);
 	return false;
 }
 
@@ -125,7 +373,7 @@ public void object::NewBot()
 	message(this.category+" started!");
 }
 
-extern void object::Buduj()
+extern void object::BuildSuperBase()
 {
 	
 	setresearchenable(-1);
