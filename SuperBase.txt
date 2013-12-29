@@ -466,7 +466,7 @@ public void object::MoveAway()
 
 public void object::TitaniumCollector()
 {
-	MoveAway();
+	NewBot();
 	object flag = radar(BlueFlag);
 	while(radar(TitaniumOre) != null) {
 		object item = GetTitanium(false, true);
@@ -486,7 +486,7 @@ public class SnifferCommunication
 
 public void object::SnifferProgram()
 {
-	NewBot();
+	MoveAway();
 	object item = radar(BlueFlag);
 	point home = GetHome();
 	
