@@ -69,6 +69,7 @@ public object object::GetTitanium(bool getReady, bool getPrepared)
 		if(item != null) return item;
 		if(!getPrepared) {
 			do {
+				wait(5);
 				item = radar(Titanium);
 			} while(item == null);
 			return item;
@@ -95,28 +96,13 @@ public object object::GetTitanium(bool getReady, bool getPrepared)
 	return null;
 }
 
-public float GetSpaceRequired(int cat) {
-	return 8;
-	switch(cat) {
-		case BotFactory: return 7.5;
-		case RadarStation: return 2.5;
-		case RepairCenter: return 6;
-		case PowerStation: return 6;
-		case Converter: return 6;
-		default: return 10;
-	}
-}
-
-public object object::Build(int cat) {
-	return Build(cat, GetSpaceRequired(cat));
-}
-public object object::Build(int cat, float spaceRequired)
+public object object::Build(int cat)
 {
 	object item = GetTitanium(true, false);
 	SafeGoto(item.position);
 	SafeGrab(Titanium);
 	item = radar(BlueFlag);
-	SafeGoto(flatspace(item.position, spaceRequired));
+	SafeGoto(flatspace(item.position, 8));
 	drop();
 	build(cat);
 	item = radar(cat);
@@ -395,6 +381,33 @@ public bool object::Recharge()
 	return false;
 }
 
+public void object::MoveAll(point nearThis, float range, int cat)
+{
+	int a=0;
+	object[] objectsToMove;
+	bool[] objectsDone;
+	for(int i=0; i<200; i++) {
+		object item = retobject(i);
+		if(item == null) continue;
+		if(item.category != cat) continue;
+		objectsToMove[a++] = item;
+	}
+	
+	for(int i=0; i<a; i++)
+		objectsDone[i] = false;
+	
+	for(int i=0; i<a; i++) {
+		while(!objectsDone[i]) {
+			SafeGoto(objectsToMove[i].position);
+			SafeGrab(cat);
+			object item = this.load;
+			SafeGoto(space(this.position, 3, 50, 3));
+			drop();
+			for(int j=0; j<a; j++) if(objectsToMove[j] == item) objectsDone[j] = true;
+		}
+	}
+}
+
 public void object::NewBot()
 {
 	while(this.energyCell == null);
@@ -408,6 +421,11 @@ extern void object::BuildSuperBase()
 	setresearchenable(-1);
 	setresearchdone(-1);
 	setbuild(-1);
+	
+	object flag = radar(BlueFlag);
+	point home = flag.position;
+	
+	MoveAll(home, 50, Titanium);
 	
 	object botFactory = Build(BotFactory);
 	object converter = Build(Converter);
