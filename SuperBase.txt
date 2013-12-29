@@ -126,6 +126,11 @@ public object object::Factory(object obj, int cat, string prog)
 	point waitpoint = this.position;
 	obj.factory(cat, progfunc(prog));
 	Get(PowerCell);
+	if(this.load.energyLevel < 1 && radar(PowerStation) != null) {
+		item = radar(PowerStation);
+		SafeGoto(item.position);
+		while(this.load.energyLevel < 1);
+	}
 	SafeGoto(waitpoint);
 	turn(direction(obj.position));
 	while((item = radar(cat, 0, 90, 3, 10)) == null);
