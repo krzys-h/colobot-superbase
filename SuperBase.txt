@@ -95,8 +95,20 @@ public object object::GetTitanium(bool getReady, bool getPrepared)
 	return null;
 }
 
+public float GetSpaceRequired(int cat) {
+	return 8;
+	switch(cat) {
+		case BotFactory: return 7.5;
+		case RadarStation: return 2.5;
+		case RepairCenter: return 6;
+		case PowerStation: return 6;
+		case Converter: return 6;
+		default: return 10;
+	}
+}
+
 public object object::Build(int cat) {
-	return Build(cat, 15);
+	return Build(cat, GetSpaceRequired(cat));
 }
 public object object::Build(int cat, float spaceRequired)
 {
@@ -104,7 +116,7 @@ public object object::Build(int cat, float spaceRequired)
 	SafeGoto(item.position);
 	SafeGrab(Titanium);
 	item = radar(BlueFlag);
-	SafeGoto(space(item.position, spaceRequired));
+	SafeGoto(flatspace(item.position, spaceRequired));
 	drop();
 	build(cat);
 	item = radar(cat);
@@ -132,6 +144,23 @@ public object object::Factory(object obj, int cat, string prog)
 	wait(2);
 	BatteryCheck();
 	return item;
+}
+
+public point object::flatspace(point nearThis, float rmin)
+{
+	point pos;
+	float r = 1;
+	float a = 1;
+	do {
+		if(++a == 360) {
+			a = 0;
+			r ++;
+		}
+		pos.x = nearThis.x + cos(a) * r;
+		pos.y = nearThis.y + sin(a) * r;
+		pos = space(pos, rmin, 50, rmin);
+	} while(flatground(pos, rmin) < rmin);
+	return pos;
 }
 
 public bool object::BatteryCheck()
@@ -384,6 +413,13 @@ extern void object::BuildSuperBase()
 	object converter = Build(Converter);
 	object titaniumCollector = Factory(botFactory, LeggedGrabber, "TitaniumCollector");
 	object radarStation = Build(RadarStation);
+	//object powerStation = Build(PowerStation);
+	object repairCenter = Build(RepairCenter);
+	object[] killers;
+	for(int i=0; i<2; i++) killers[i] = Factory(botFactory, LeggedShooter, "MoveAway");
+	for(int i=2; i<4; i++) killers[i] = Factory(botFactory, WingedShooter, "MoveAway");
+	
+	while(true) wait(1); // blink the lights :)
 	
 }
 
