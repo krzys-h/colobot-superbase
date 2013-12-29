@@ -98,6 +98,41 @@ public object object::GetTitanium(bool getReady, bool getPrepared)
 	return null;
 }
 
+public object object::GetCell(bool getReady, bool getPrepared)
+{
+	object item;
+	
+	if(getReady) {
+		item = radar(PowerCell);
+		if(item != null) return item;
+		if(!getPrepared) {
+			do {
+				wait(5);
+				item = radar(PowerCell);
+			} while(item == null);
+			return item;
+		}
+	}
+	
+	if(getPrepared) {
+		if(radar(PowerPlant) == null) {
+			message("Unable to get PowerCell!", DisplayError);
+			return null;
+		}
+		
+		item = radar(Titanium);
+		SafeGoto(item.position);
+		SafeGrab(Titanium);
+		item = radar(PowerPlant);
+		SafeGoto(item.position);
+		drop();
+		while(item.energyCell == null || item.energyCell.category != PowerPlant);
+		return item;
+	}
+	
+	return null;
+}
+
 public object object::Build(int cat)
 {
 	return Build(cat, flatspace(GetHome(), 8));
@@ -125,7 +160,9 @@ public object object::Factory(object obj, int cat, string prog)
 	move(-5);
 	point waitpoint = this.position;
 	obj.factory(cat, progfunc(prog));
-	Get(PowerCell);
+	item = GetCell(true, true);
+	SafeGoto(item.position);
+	grab();
 	if(this.load.energyLevel < 1 && radar(PowerStation) != null) {
 		item = radar(PowerStation);
 		SafeGoto(item.position);
@@ -450,9 +487,11 @@ extern void object::BuildSuperBase()
 	object repairCenter = Build(RepairCenter);
 	while(sniff_comm.searchFor != 0) wait(1);
 	object powerStation = Build(PowerStation, sniff_comm.foundPos);
+	object powerPlant = Build(PowerPlant, flatspace(sniff_comm.foundPos, 8)); //TODO: Check if there is energy
+	object thumper = Factory(botFactory, Thumper, "MoveAway");
+	object shielder = Factory(botFactory, Shielder, "MoveAway");
 	object[] killers;
-	for(int i=0; i<2; i++) killers[i] = Factory(botFactory, LeggedShooter, "MoveAway");
-	for(int i=2; i<4; i++) killers[i] = Factory(botFactory, WingedShooter, "MoveAway");
+	for(int i=0; i<3; i++) killers[i] = Factory(botFactory, LeggedShooter, "MoveAway");
 	
 	while(true) wait(1); // blink the lights :)
 	
