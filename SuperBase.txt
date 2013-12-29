@@ -1,0 +1,160 @@
+public object object::SafeGoto(point target)
+{
+	errmode(0);
+	while(goto(target) != 0) message("Unable to goto()", DisplayWarning);
+	errmode(1);
+}
+
+public object object::GoTo(int cat)
+{
+	object item = radar(cat);
+	SafeGoto(item.position);
+	return item;
+}
+
+public object object::SafeGrab(int cat)
+{
+	do {
+		grab();
+		if(this.load.category != cat) {
+			drop();
+			Get(cat);
+		}
+	} while(this.load == null || this.load.category != cat);
+}
+
+public object object::Get(int cat)
+{
+	object item = GoTo(cat);
+	SafeGrab(cat);
+	return item;
+}
+
+public object object::Deposit(int cat)
+{
+	object item = GoTo(cat);
+	drop();
+	return item;
+}
+
+public object object::GetTitanium() 
+{
+	GetTitanium(true, true);
+}
+
+public object object::GetTitanium(bool getReady, bool getPrepared)
+{
+	object item;
+	
+	if(getReady) {
+		item = radar(Titanium);
+		if(item != null) return item;
+		if(!getPrepared) {
+			do {
+				item = radar(Titanium);
+			} while(item == null);
+			return item;
+		}
+	}
+	
+	if(getPrepared) {
+		if(radar(Converter) == null) {
+			message("Unable to get Titanium!", DisplayError);
+			return null;
+		}
+		
+		item = radar(TitaniumOre);
+		SafeGoto(item.position);
+		SafeGrab(TitaniumOre);
+		item = radar(Converter);
+		SafeGoto(item.position);
+		drop();
+		move(-2.5);
+		while((item = radar(Titanium, 0, 90, 2, 5)) == null);
+		return item;
+	}
+	
+	return null;
+}
+
+public object object::Build(int cat) {
+	return Build(cat, 15);
+}
+public object object::Build(int cat, float spaceRequired)
+{
+	object item = GetTitanium(true, false);
+	SafeGoto(item.position);
+	SafeGrab(Titanium);
+	item = radar(BlueFlag);
+	SafeGoto(space(item.position, spaceRequired));
+	drop();
+	build(cat);
+	return radar(cat);
+}
+
+public object object::Factory(object obj, int cat, string prog)
+{
+	object item = GetTitanium(true, false);
+	SafeGoto(item.position);
+	SafeGrab(Titanium);
+	SafeGoto(obj.position);
+	drop();
+	move(-5);
+	point waitpoint = this.position;
+	obj.factory(cat, progfunc(prog));
+	Get(PowerCell);
+	SafeGoto(waitpoint);
+	while((item = radar(cat, 0, 90, 3, 7)) == null);
+	wait(1);
+	Deposit(cat);
+	move(-10);
+	wait(2);
+	return item;
+}
+
+public bool object::BatteryCheck()
+{
+	//TODO
+	return false;
+}
+
+public void object::NewBot()
+{
+	while(this.energyCell == null);
+	wait(3);
+	message(this.category+" started!");
+}
+
+extern void object::Buduj()
+{
+	
+	setresearchenable(-1);
+	setresearchdone(-1);
+	setbuild(-1);
+	
+	object botFactory = Build(BotFactory);
+	object converter = Build(Converter);
+	object titaniumCollector = Factory(botFactory, LeggedGrabber, "TitaniumCollector");
+	object radarStation = Build(RadarStation);
+	
+}
+
+public void object::MoveAway()
+{
+	NewBot();
+	SafeGoto(space());
+}
+
+public void object::TitaniumCollector()
+{
+	NewBot();
+	object flag = radar(BlueFlag);
+	while(radar(TitaniumOre) != null) {
+		object item = GetTitanium(false, true);
+		SafeGoto(item.position);
+		SafeGrab(Titanium);
+		SafeGoto(space(flag.position));
+		drop();
+		BatteryCheck();
+	}
+}
