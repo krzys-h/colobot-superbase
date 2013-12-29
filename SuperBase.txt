@@ -21,13 +21,15 @@ public object object::GoTo(int cat)
 
 public object object::SafeGrab(int cat)
 {
+	errmode(0);
 	do {
-		grab();
+		if(grab() != 0) Get(cat);
 		if(this.load.category != cat) {
 			drop();
 			Get(cat);
 		}
 	} while(this.load == null);
+	errmode(1);
 }
 
 public object object::SafeGrabCell()
@@ -98,11 +100,14 @@ public object object::GetTitanium(bool getReady, bool getPrepared)
 
 public object object::Build(int cat)
 {
+	return Build(cat, flatspace(GetHome(), 8));
+}
+public object object::Build(int cat, point pos)
+{
 	object item = GetTitanium(true, false);
 	SafeGoto(item.position);
 	SafeGrab(Titanium);
-	item = radar(BlueFlag);
-	SafeGoto(flatspace(item.position, 8));
+	SafeGoto(pos);
 	drop();
 	build(cat);
 	item = radar(cat);
@@ -394,7 +399,7 @@ public void object::MoveAll(point nearThis, float range, int cat)
 	}
 	
 	for(int i=0; i<a; i++)
-		objectsDone[i] = false;
+	objectsDone[i] = false;
 	
 	for(int i=0; i<a; i++) {
 		while(!objectsDone[i]) {
@@ -406,6 +411,12 @@ public void object::MoveAll(point nearThis, float range, int cat)
 			for(int j=0; j<a; j++) if(objectsToMove[j] == item) objectsDone[j] = true;
 		}
 	}
+}
+
+public point object::GetHome()
+{
+	object item = radar(BlueFlag);
+	return item.position;
 }
 
 public void object::NewBot()
@@ -422,17 +433,18 @@ extern void object::BuildSuperBase()
 	setresearchdone(-1);
 	setbuild(-1);
 	
-	object flag = radar(BlueFlag);
-	point home = flag.position;
-	
-	MoveAll(home, 50, Titanium);
+	MoveAll(GetHome(), 50, Titanium);
 	
 	object botFactory = Build(BotFactory);
 	object converter = Build(Converter);
 	object titaniumCollector = Factory(botFactory, LeggedGrabber, "TitaniumCollector");
+	object sniffer = Factory(botFactory, LeggedSniffer, "SnifferProgram");
+	SnifferCommunication sniff_comm();
+	sniff_comm.searchFor = PowerSpot;
 	object radarStation = Build(RadarStation);
-	//object powerStation = Build(PowerStation);
 	object repairCenter = Build(RepairCenter);
+	while(sniff_comm.searchFor != 0) wait(1);
+	object powerStation = Build(PowerStation, sniff_comm.foundPos);
 	object[] killers;
 	for(int i=0; i<2; i++) killers[i] = Factory(botFactory, LeggedShooter, "MoveAway");
 	for(int i=2; i<4; i++) killers[i] = Factory(botFactory, WingedShooter, "MoveAway");
@@ -449,7 +461,7 @@ public void object::MoveAway()
 
 public void object::TitaniumCollector()
 {
-	NewBot();
+	MoveAway();
 	object flag = radar(BlueFlag);
 	while(radar(TitaniumOre) != null) {
 		object item = GetTitanium(false, true);
@@ -457,6 +469,56 @@ public void object::TitaniumCollector()
 		SafeGrab(Titanium);
 		SafeGoto(space(flag.position));
 		drop();
+		BatteryCheck();
+	}
+}
+
+public class SnifferCommunication
+{
+	public static int searchFor = 0;
+	public static point foundPos;
+}
+
+public void object::SnifferProgram()
+{
+	NewBot();
+	object item = radar(BlueFlag);
+	point home = GetHome();
+	
+	SnifferCommunication comm();
+	while(true) {
+		while(comm.searchFor == 0) wait(1);
+		
+		float r = 1;
+		float a = 1;
+		point lastPos, pos;
+		while(r<60 && radar(comm.searchFor) == null) {
+			if(++a == 360) {
+				a = 0;
+				r += 8;
+			}
+			pos.x = home.x + cos(a) * r;
+			pos.y = home.y + sin(a) * r;
+			if(flatground(pos, 8) < 8) continue;
+			if(distance(lastPos, pos) < 8) continue;
+			lastPos = pos;
+			errmode(0);
+			if(goto(pos) == 0) sniff();
+			errmode(1);
+			//produce(pos, 0, WayPoint);
+			BatteryCheck();
+		}
+		
+		object item = radar(comm.searchFor);
+		if(item == null) {
+			comm.foundPos.x = 0;
+			comm.foundPos.y = 0;
+			comm.foundPos.z = 0;
+		} else {
+			comm.foundPos = item.position;
+		}
+		comm.searchFor = 0;
+		SafeGoto(space(home));
 		BatteryCheck();
 	}
 }
