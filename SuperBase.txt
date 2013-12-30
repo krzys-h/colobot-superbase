@@ -135,13 +135,13 @@ public object object::GetCell(bool getReady, bool getPrepared)
 			return null;
 		}
 		
-		item = GetTitanium();
+		item = GetTitanium(true, false);
 		SafeGoto(item.position);
 		SafeGrab(Titanium);
 		item = radar(PowerPlant);
 		SafeGoto(item.position);
 		drop();
-		while(item.energyCell == null || item.energyCell.category != PowerPlant);
+		while(item.energyCell == null || item.energyCell.category != PowerCell);
 		return item;
 	}
 	
