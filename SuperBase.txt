@@ -70,6 +70,34 @@ public object object::Deposit(int cat)
 	return item;
 }
 
+public void object::MyGoto(point pos, float dist)
+{
+	while(distance(this.position, pos) > dist) {
+		turn(direction(pos));
+		jet(0);
+		/*point checkPos;
+		checkPos.x = this.position.x + cos(this.orientation);
+		checkPos.y = this.position.y + sin(this.orientation);*/
+		point checkPos = this.position;
+		if(this.position.z < topo(checkPos) + 30) jet(0.5);
+		if(this.position.z > topo(checkPos) + 40) jet(-0.5);
+		if(this.temperature > 0.75 && radar(AlienAnt, 0, 380, 0, 45) == null) {
+			motor(0,0);
+			jet(-1);
+			while(this.temperature > 0) wait(0.01);
+			jet(1);
+			motor(1,1);
+		}
+		motor(1,1);
+		if(distance(this.position, pos) < 60) jet(-1);
+		wait(0.25);
+	}
+	motor(0,0);
+	jet(-1);
+	while(this.position.z > topo(this.position)) wait(0.01);
+	SafeGoto(pos);
+}
+
 public object object::GetTitanium() 
 {
 	GetTitanium(true, true);
@@ -273,21 +301,17 @@ public object object::GetBattery()
 
 public bool object::Recharge()
 {
-	point start = this.position;
-	 
 	if(this.energyCell.category == PowerCell) {
 		if(radar(PowerStation) != null) {
 			object item = radar(PowerStation);
 			SafeGoto(item.position);
 			while(this.energyCell.energyLevel < 1) wait(0.01);
-			SafeGoto(start);
 			return true;
 		}
 		if(radar(PowerCaptor) != null) {
 			object item = radar(PowerCaptor);
 			SafeGoto(item.position);
 			while(this.energyCell.energyLevel < 1) wait(0.01);
-			SafeGoto(start);
 			return true;
 		}
 	}
@@ -311,7 +335,6 @@ public bool object::Recharge()
 			drop(InFront);
 			grab(Behind);
 			drop(EnergyCell);
-			SafeGoto(start);
 			return true;
 		}
 		 
@@ -329,7 +352,6 @@ public bool object::Recharge()
 					grab(InFront);
 					SafeGoto(space());
 					drop(InFront);
-					SafeGoto(start);
 					return true;
 				} else if(plant.energyCell.category == UraniumOre) {
 					SafeGoto(plant.position);
@@ -345,7 +367,6 @@ public bool object::Recharge()
 					grab(InFront);
 					SafeGoto(space());
 					drop(InFront);
-					SafeGoto(start);
 					return true;
 				} else {
 					if(radar(UraniumOre) != null) {
@@ -374,7 +395,6 @@ public bool object::Recharge()
 				grab(InFront);
 				SafeGoto(space());
 				drop(InFront);
-				SafeGoto(start);
 				return true;
 			}
 		}
@@ -393,7 +413,6 @@ public bool object::Recharge()
 					grab(InFront);
 					SafeGoto(space());
 					drop(InFront);
-					SafeGoto(start);
 					return true;
 				} else if(plant.energyCell.category == Titanium) {
 					SafeGoto(plant.position);
@@ -407,7 +426,6 @@ public bool object::Recharge()
 					grab(InFront);
 					SafeGoto(space());
 					drop(InFront);
-					SafeGoto(start);
 					return true;
 				} else {
 					if(radar(Titanium) != null) {
@@ -434,12 +452,26 @@ public bool object::Recharge()
 				grab(InFront);
 				SafeGoto(space());
 				drop(InFront);
-				SafeGoto(start);
 				return true;
 			}
 		}
 	}
 	message("Unable to charge", DisplayError);
+	return false;
+}
+
+public bool object::Service()
+{
+	object item = radar(RepairCenter);
+	if(item == null) return false;
+	SafeGoto(item.position);
+	while(this.shieldLevel < 1) wait(0.01);
+	return true;
+}
+
+public bool object::ServiceCheck()
+{
+	if(this.shieldLevel < 0.25) return Service();
 	return false;
 }
 
@@ -485,10 +517,13 @@ extern void object::BuildSuperBase()
 	sniff_comm.searchFor = PowerSpot;
 	while(sniff_comm.searchFor != 0) wait(1);
 	object powerPlant = Build(PowerPlant, sniff_comm.foundPos);
-	object thumper = Factory(botFactory, Thumper, "MoveAway");
-	object shielder = Factory(botFactory, Shielder, "MoveAway");
-	object[] killers;
-	for(int i=0; i<3; i++) killers[i] = Factory(botFactory, LeggedShooter, "MoveAway");
+	//object thumper = Factory(botFactory, Thumper, "MoveAway");
+	//object shielder = Factory(botFactory, Shielder, "MoveAway");
+	object uraniumAntKiller = Factory(botFactory, WingedShooter, "KillUraniumAnts");
+	object nuclearPlant = Build(NuclearPlant);
+	object uraniumCollector = Factory(botFactory, WingedGrabber, "UraniumCollector");
+	UraniumAntKillerCommunication uranant_comm();
+	while(!uranant_comm.done) wait(1);
 	
 	while(true) wait(1); // blink the lights :)
 	
@@ -507,8 +542,9 @@ public void object::TitaniumCollector()
 		object item = GetTitanium(false, true);
 		SafeGoto(item.position);
 		SafeGrab(Titanium);
-		SafeGoto(space(GetHome()));
+		SafeGoto(space(GetHome(), 4, 50, 4));
 		SafeDrop();
+		ServiceCheck();
 		BatteryCheck();
 	}
 }
@@ -588,5 +624,74 @@ public void object::SnifferProgram()
 		comm.searchFor = 0;
 		SafeGoto(space(GetHome()));
 		BatteryCheck();
+	}
+}
+
+public object object::FindAntNear(object pos, float maxDist)
+{
+	object item = search(AlienAnt, pos.position);
+	if(distance(pos.position, item.position) > maxDist) return null;
+	return item;
+}
+
+public class UraniumAntKillerCommunication
+{
+	public static bool done = false;
+}
+
+public void object::KillUraniumAnts()
+{
+	NewBot();
+	aim(0);
+	move(-5);
+	
+	UraniumAntKillerCommunication comm();
+	
+	object item;
+	while((item = FindAntNear(radar(UraniumOre), 75)) != null) {
+		turn(direction(item.position));
+		jet(0);
+		if(this.position.z < topo(this.position) + 30) jet(0.5);
+		if(this.position.z > topo(this.position) + 40) jet(-0.5);
+		motor(1,1);
+		if(distance(this.position, item.position) < 60) {
+			motor(0,0);
+			jet(-1);
+			if(distance(this.position, item.position) < 40) {
+				//TODO: Calculate aim angle
+				aim(0);
+				fire(0.2);
+			}
+		}
+		ServiceCheck();
+		BatteryCheck();
+		wait(0.1);
+	}
+	comm.done = true;
+}
+
+public void object::UraniumCollector()
+{
+	NewBot();
+	
+	UraniumAntKillerCommunication uranant_comm();
+	while(!uranant_comm.done) wait(1);
+	
+	while(radar(UraniumOre) != null) {
+		object item = radar(UraniumOre);
+		MyGoto(item.position, 2);
+		SafeGrab(UraniumOre);
+		item = radar(NuclearPlant);
+		MyGoto(item.position, 12);
+		drop();
+		move(-5);
+		while(item.energyCell.category != NuclearCell) wait(1);
+		SafeGoto(item.position);
+		grab();
+		SafeGoto(space(GetHome(), 4, 50, 4));
+		SafeDrop();
+		Service();
+		if(this.energyCell.category == PowerCell) Recharge();
+		else BatteryCheck();
 	}
 }
