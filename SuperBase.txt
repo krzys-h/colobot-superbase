@@ -1,13 +1,15 @@
 public object object::SafeGoto(point target)
 {
 	errmode(0);
-	bool first = true;
+	int counter = 0;
 	while(goto(target) != 0) {
-		if(first) {
+		if(counter == 0) {
 			message("Unable to goto()", DisplayWarning);
-			first = false;
 		}
-		move(-0.5);
+		if(counter < 10) {
+			move(-0.5);
+		}
+		counter++;
 	}
 	errmode(1);
 }
@@ -25,10 +27,21 @@ public object object::SafeGrab(int cat)
 	do {
 		if(grab() != 0) Get(cat);
 		if(this.load.category != cat) {
-			drop();
+			SafeDrop();
 			Get(cat);
 		}
 	} while(this.load == null);
+	errmode(1);
+}
+
+public void object::SafeDrop()
+{
+	errmode(0);
+	if(drop() != 0) {
+		do {
+			SafeGoto(space());
+		} while(drop() != 0);
+	}
 	errmode(1);
 }
 
@@ -71,8 +84,10 @@ public object object::GetTitanium(bool getReady, bool getPrepared)
 		if(item != null) return item;
 		if(!getPrepared) {
 			do {
-				wait(5);
 				item = radar(Titanium);
+				if(item == null) continue;
+				object conv = search(Converter, item.position);
+				if(distance(item.position, conv.position) < 5) item = null;
 			} while(item == null);
 			return item;
 		}
@@ -89,7 +104,7 @@ public object object::GetTitanium(bool getReady, bool getPrepared)
 		SafeGrab(TitaniumOre);
 		item = radar(Converter);
 		SafeGoto(item.position);
-		drop();
+		SafeDrop();
 		move(-2.5);
 		while((item = radar(Titanium, 0, 90, 2, 5)) == null);
 		return item;
@@ -278,10 +293,10 @@ public bool object::Recharge()
 	}
 	 
 	if(!(this.category == WheeledGrabber ||
-	     this.category == TrackedGrabber ||
-	     this.category == WingedGrabber ||
-	     this.category == LeggedGrabber ||
-	     this.category == Subber)) {
+	 this.category == TrackedGrabber ||
+	 this.category == WingedGrabber ||
+	 this.category == LeggedGrabber ||
+	 this.category == Subber)) {
 		message("Unable to recharge", DisplayError);
 		return false;
 	}
@@ -449,7 +464,7 @@ public void object::MoveAll(point nearThis, float range, int cat)
 			SafeGrab(cat);
 			object item = this.load;
 			SafeGoto(space(this.position, 3, 50, 3));
-			drop();
+			SafeDrop();
 			for(int j=0; j<a; j++) if(objectsToMove[j] == item) objectsDone[j] = true;
 		}
 	}
@@ -512,7 +527,7 @@ public void object::TitaniumCollector()
 		SafeGoto(item.position);
 		SafeGrab(Titanium);
 		SafeGoto(space(flag.position));
-		drop();
+		SafeDrop();
 		BatteryCheck();
 	}
 }
