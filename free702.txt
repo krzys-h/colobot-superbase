@@ -3,12 +3,13 @@ Title.P text="Budowanie bazy"
 // End of level headers translations
 
 MissionFile  version=2
+Mission      retro=1
 
 Instructions name="fglobal.txt"
 HelpFile     name="cbot.txt"
 EndingFile   win=-1 lost=-1
 
-Audio         filename="Constructive.ogg"
+Audio         filename="Prototype.ogg"
 AmbientColor  air=0.400;0.400;0.400;0.400 water=0.078;0.078;0.078;0.078  // grey
 FogColor      air=0.690;0.690;0.710;0.000 water=0.039;0.392;0.078;0.000  // grey
 VehicleColor  color=0.459;0.620;0.251;0.000  // vert
@@ -48,7 +49,7 @@ TerrainCreate
 
 BeginObject
 CreateObject pos= 0.00;10.00 dir=0.0 type=BlueFlag
-CreateObject pos= 0.00;-3.25 dir=1.5 type=WheeledGrabber select=1
+CreateObject pos= 0.00;-3.25 dir=1.5 type=WheeledGrabber select=1 script1="SuperBaza.txt" run=1
 CreateObject pos=-3.75; 2.50 dir=0.0 type=Titanium
 CreateObject pos=-2.50; 2.50 dir=0.0 type=Titanium
 CreateObject pos=-0.62; 2.50 dir=0.0 type=Titanium
