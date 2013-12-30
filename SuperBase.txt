@@ -135,7 +135,7 @@ public object object::GetCell(bool getReady, bool getPrepared)
 			return null;
 		}
 		
-		item = radar(Titanium);
+		item = GetTitanium();
 		SafeGoto(item.position);
 		SafeGrab(Titanium);
 		item = radar(PowerPlant);
