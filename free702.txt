@@ -3,7 +3,7 @@ Title.P text="Budowanie bazy"
 // End of level headers translations
 
 MissionFile  version=2
-Mission      retro=1
+//Mission      retro=1
 
 Instructions name="fglobal.txt"
 HelpFile     name="cbot.txt"
@@ -48,20 +48,20 @@ TerrainLevel    id=9 min=0.0 max=99.0 slope=0.0 freq= 20.0
 TerrainCreate
 
 BeginObject
-CreateObject pos= 0.00;10.00 dir=0.0 type=BlueFlag
-CreateObject pos= 0.00;-3.25 dir=1.5 type=WheeledGrabber select=1 script1="SuperBaza.txt" run=1
-CreateObject pos=-3.75; 2.50 dir=0.0 type=Titanium
-CreateObject pos=-2.50; 2.50 dir=0.0 type=Titanium
-CreateObject pos=-0.62; 2.50 dir=0.0 type=Titanium
-CreateObject pos= 0.63; 2.50 dir=0.0 type=Titanium
-CreateObject pos= 2.50; 2.50 dir=0.0 type=Titanium
-CreateObject pos= 3.75; 2.50 dir=0.0 type=Titanium
-CreateObject pos=-3.75; 3.75 dir=0.0 type=PowerCell
-CreateObject pos=-2.50; 3.75 dir=0.0 type=PowerCell
-CreateObject pos=-0.62; 3.75 dir=0.0 type=PowerCell
-CreateObject pos= 0.63; 3.75 dir=0.0 type=PowerCell
-CreateObject pos= 2.50; 3.75 dir=0.0 type=PowerCell
-CreateObject pos= 3.75; 3.75 dir=0.0 type=PowerCell
+CreateObject pos= 0.00; 0.00 dir=0.0 type=SpaceShip run=1
+CreateObject pos= 3.25; 0.00 dir=1.0 type=WheeledGrabber select=1 script1="SuperBaza.txt" run=1
+CreateObject pos=-3.75;-3.00 dir=0.0 type=Titanium
+CreateObject pos=-2.50;-3.00 dir=0.0 type=Titanium
+CreateObject pos=-0.62;-3.00 dir=0.0 type=Titanium
+CreateObject pos= 0.63;-3.00 dir=0.0 type=Titanium
+CreateObject pos= 2.50;-3.00 dir=0.0 type=Titanium
+CreateObject pos= 3.75;-3.00 dir=0.0 type=Titanium
+CreateObject pos=-3.75; 3.00 dir=0.0 type=PowerCell
+CreateObject pos=-2.50; 3.00 dir=0.0 type=PowerCell
+CreateObject pos=-0.62; 3.00 dir=0.0 type=PowerCell
+CreateObject pos= 0.63; 3.00 dir=0.0 type=PowerCell
+CreateObject pos= 2.50; 3.00 dir=0.0 type=PowerCell
+CreateObject pos= 3.75; 3.00 dir=0.0 type=PowerCell
 
 CreateObject pos=-145; -16 dir=0.2 type=TitaniumOre
 CreateObject pos=-141; -21 dir=0.2 type=TitaniumOre

@@ -443,36 +443,9 @@ public bool object::Recharge()
 	return false;
 }
 
-public void object::MoveAll(point nearThis, float range, int cat)
-{
-	int a=0;
-	object[] objectsToMove;
-	bool[] objectsDone;
-	for(int i=0; i<200; i++) {
-		object item = retobject(i);
-		if(item == null) continue;
-		if(item.category != cat) continue;
-		objectsToMove[a++] = item;
-	}
-	
-	for(int i=0; i<a; i++)
-	objectsDone[i] = false;
-	
-	for(int i=0; i<a; i++) {
-		while(!objectsDone[i]) {
-			SafeGoto(objectsToMove[i].position);
-			SafeGrab(cat);
-			object item = this.load;
-			SafeGoto(space(this.position, 3, 50, 3));
-			SafeDrop();
-			for(int j=0; j<a; j++) if(objectsToMove[j] == item) objectsDone[j] = true;
-		}
-	}
-}
-
 public point object::GetHome()
 {
-	object item = radar(BlueFlag);
+	object item = radar(SpaceShip);
 	return item.position;
 }
 
@@ -490,19 +463,28 @@ extern void object::BuildSuperBase()
 	setresearchdone(-1);
 	setbuild(-1);
 	
-	MoveAll(GetHome(), 50, Titanium);
+	while(ismovie() != 0) wait(1);
 	
 	object botFactory = Build(BotFactory);
 	object converter = Build(Converter);
 	object titaniumCollector = Factory(botFactory, LeggedGrabber, "TitaniumCollector");
 	object sniffer = Factory(botFactory, LeggedSniffer, "SnifferProgram");
 	SnifferCommunication sniff_comm();
+	sniff_comm.searchHere = GetHome();
+	sniff_comm.requiredSpace = 8;
+	sniff_comm.requiredDistance = 40;
 	sniff_comm.searchFor = PowerSpot;
 	object radarStation = Build(RadarStation);
 	object repairCenter = Build(RepairCenter);
 	while(sniff_comm.searchFor != 0) wait(1);
-	object powerStation = Build(PowerStation, sniff_comm.foundPos);
-	object powerPlant = Build(PowerPlant, flatspace(sniff_comm.foundPos, 8)); //TODO: Check if there is energy
+	point energySpot = sniff_comm.foundPos;
+	object powerStation = Build(PowerStation, energySpot);
+	sniff_comm.searchHere = energySpot;
+	sniff_comm.requiredSpace = 5;
+	sniff_comm.requiredDistance = 13;
+	sniff_comm.searchFor = PowerSpot;
+	while(sniff_comm.searchFor != 0) wait(1);
+	object powerPlant = Build(PowerPlant, sniff_comm.foundPos);
 	object thumper = Factory(botFactory, Thumper, "MoveAway");
 	object shielder = Factory(botFactory, Shielder, "MoveAway");
 	object[] killers;
@@ -521,12 +503,11 @@ public void object::MoveAway()
 public void object::TitaniumCollector()
 {
 	NewBot();
-	object flag = radar(BlueFlag);
 	while(radar(TitaniumOre) != null) {
 		object item = GetTitanium(false, true);
 		SafeGoto(item.position);
 		SafeGrab(Titanium);
-		SafeGoto(space(flag.position));
+		SafeGoto(space(GetHome()));
 		SafeDrop();
 		BatteryCheck();
 	}
@@ -535,49 +516,77 @@ public void object::TitaniumCollector()
 public class SnifferCommunication
 {
 	public static int searchFor = 0;
+	public static point searchHere;
+	public static float requiredSpace;
+	public static float requiredDistance;
 	public static point foundPos;
+	public static point[] usedMarkers;
+	public static int usedMarkersCount = 0;
 }
 
 public void object::SnifferProgram()
 {
 	MoveAway();
-	object item = radar(BlueFlag);
-	point home = GetHome();
-	
 	SnifferCommunication comm();
+	
 	while(true) {
 		while(comm.searchFor == 0) wait(1);
+		point home = comm.searchHere;
+		float dr = comm.requiredSpace;
+		float minDist = comm.requiredDistance;
 		
-		float r = 1;
+		float r = minDist;
 		float a = 1;
+		object spot;
 		point lastPos, pos;
-		while(r<60 && radar(comm.searchFor) == null) {
+		while(r<60) {
 			if(++a == 360) {
 				a = 0;
-				r += 8;
+				r += dr;
 			}
 			pos.x = home.x + cos(a) * r;
 			pos.y = home.y + sin(a) * r;
-			if(flatground(pos, 8) < 8) continue;
-			if(distance(lastPos, pos) < 8) continue;
+			//TODO: After some time shows only shadows, after some more crashes the game
+			//produce(pos, 0, WayPoint);
+			if(flatground(pos, dr) < dr) continue;
+			if(distance(lastPos, pos) < dr) continue;
+			if(distance(pos, home) < minDist) continue;
+			bool doSniff = true;
+			for(int i=0; i<comm.usedMarkersCount; i++) {
+				if(distance(pos, comm.usedMarkers[i]) < minDist) {
+					doSniff = false;
+					break;
+				}
+			}
+			if(!doSniff) continue;
 			lastPos = pos;
 			errmode(0);
 			if(goto(pos) == 0) sniff();
 			errmode(1);
-			//produce(pos, 0, WayPoint);
+			spot = radar(comm.searchFor);
+			if(spot != null) {
+				bool found = true;
+				for(int i=0; i<comm.usedMarkersCount; i++) {
+					if(comm.usedMarkers[i] == spot.position) {
+						found = false;
+						break;
+					}
+				}
+				if(found) break;
+			}
 			BatteryCheck();
 		}
 		
-		object item = radar(comm.searchFor);
-		if(item == null) {
+		if(spot == null) {
 			comm.foundPos.x = 0;
 			comm.foundPos.y = 0;
 			comm.foundPos.z = 0;
 		} else {
-			comm.foundPos = item.position;
+			comm.foundPos = spot.position;
+			comm.usedMarkers[comm.usedMarkersCount++] = spot.position;
 		}
 		comm.searchFor = 0;
-		SafeGoto(space(home));
+		SafeGoto(space(GetHome()));
 		BatteryCheck();
 	}
 }
