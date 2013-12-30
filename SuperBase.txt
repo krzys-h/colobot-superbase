@@ -213,20 +213,20 @@ public bool object::BatteryCheck()
 public object object::GetBattery()
 {
 	object maxEnergyCell = null;
-	object zajeteBaterie[];
+	object usedBatteries[];
 	float maxEnergy = -1;
 	int j=0;
 	for(int i=0;i<500;i++) {
 		object item = retobject(i);
 		if(item != null) {
 			if(item.energyCell != null) {
-				zajeteBaterie[j] = item.energyCell;
+				usedBatteries[j] = item.energyCell;
 				j++;
 			}
 			if(item.load != null) {
 				if(item.load.category == PowerCell ||
 				   item.load.category == NuclearCell) {
-					zajeteBaterie[j] = item.load;
+					usedBatteries[j] = item.load;
 					j++;
 				}
 			}
@@ -235,14 +235,14 @@ public object object::GetBattery()
 	for(int i=0;i<500;i++) {
 		object item = retobject(i);
 		if(item != null) {
-			bool zajete = false;
-			for(int j=0;j<sizeof(zajeteBaterie);j++) {
-				if(item == zajeteBaterie[j]) {
-					zajete = true;
+			bool used = false;
+			for(int j=0;j<sizeof(usedBatteries);j++) {
+				if(item == usedBatteries[j]) {
+					used = true;
 					break;
 				}
 			}
-			if(zajete) continue;
+			if(used) continue;
 			if(item.category == NuclearCell && item.energyLevel*100>maxEnergy) {
 				maxEnergy = item.energyLevel*100;
 				maxEnergyCell = item;
