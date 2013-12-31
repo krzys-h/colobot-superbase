@@ -111,12 +111,15 @@ public object object::GetTitanium(bool getReady, bool getPrepared)
 		item = radar(Titanium);
 		if(item != null) return item;
 		if(!getPrepared) {
+			Database db();
+			db.switchCamera(db.titaniumCollector);
 			do {
 				item = radar(Titanium);
 				if(item == null) continue;
 				object conv = search(Converter, item.position);
 				if(distance(item.position, conv.position) < 5) item = null;
 			} while(item == null);
+			db.switchCamera(db.builder);
 			return item;
 		}
 	}
@@ -215,7 +218,12 @@ public object object::Factory(object obj, int cat, string prog, bool nuclear)
 			while(this.load.energyLevel < 1);
 		}
 	} else {
-		while((item = radar(NuclearCell)) == null) wait(1);
+		if(radar(NuclearCell) == null) {
+			Database db();
+			db.switchCamera(db.uraniumCollector);
+			while((item = radar(NuclearCell)) == null) wait(1);
+			db.switchCamera(db.builder);
+		}
 		SafeGoto(item.position);
 		SafeGrab(NuclearCell);
 	}
@@ -540,6 +548,38 @@ public void object::NewBot()
 	message(this.category+" started!");
 }
 
+public class Database {
+	//Buildings
+	public static object botFactory = null;
+	public static object converter = null;
+	public static object radarStation = null;
+	public static object repairCenter = null;
+	public static object powerStation = null;
+	public static object powerPlant = null;
+	public static object nuclearPlant = null;
+	
+	//Robots
+	public static object builder = null;
+	public static object titaniumCollector = null;
+	public static object sniffer = null;
+	public static object killers[];
+	public static object uraniumCollector = null;
+	public static object thumper = null;
+	public static object shielder = null;
+	
+	//Camera
+	public static object focusedObject = null;
+	public void switchCamera(object item)
+	{
+		UraniumAntKillerCommunication uranant_comm();
+		if(!uranant_comm.started || uranant_comm.back) {
+			camerafocus(item);
+		}
+		focusedObject = item;
+		
+	}
+}
+
 extern void object::BuildSuperBase()
 {
 	
@@ -549,47 +589,59 @@ extern void object::BuildSuperBase()
 	
 	while(ismovie() != 0) wait(1);
 	
-	object botFactory = Build(BotFactory);
-	object converter = Build(Converter);
-	object titaniumCollector = Factory(botFactory, LeggedGrabber, "TitaniumCollector", false);
-	object sniffer = Factory(botFactory, LeggedSniffer, "SnifferProgram", false);
+	Database db();
+	db.builder = this;
+	db.focusedObject = this;
+	
+	playmusic("Hv2.ogg", 1);
+	db.botFactory = Build(BotFactory);
+	db.converter = Build(Converter);
+	db.titaniumCollector = Factory(db.botFactory, LeggedGrabber, "TitaniumCollector", false);
+	db.sniffer = Factory(db.botFactory, LeggedSniffer, "SnifferProgram", false);
 	SnifferCommunication sniff_comm();
 	sniff_comm.searchHere = GetHome();
 	sniff_comm.requiredSpace = 8;
 	sniff_comm.requiredDistance = 40;
 	sniff_comm.searchFor = PowerSpot;
-	object radarStation = Build(RadarStation);
-	object repairCenter = Build(RepairCenter);
+	db.radarStation = Build(RadarStation);
+	db.repairCenter = Build(RepairCenter);
+	camerafocus(db.sniffer);
 	while(sniff_comm.searchFor != 0) wait(1);
+	camerafocus(this);
 	point energySpot = sniff_comm.foundPos;
-	object powerStation = Build(PowerStation, energySpot);
+	db.powerStation = Build(PowerStation, energySpot);
+	camerafocus(db.sniffer);
 	sniff_comm.searchHere = energySpot;
 	sniff_comm.requiredSpace = 5;
 	sniff_comm.requiredDistance = 13;
 	sniff_comm.searchFor = PowerSpot;
 	while(sniff_comm.searchFor != 0) wait(1);
-	object powerPlant = Build(PowerPlant, sniff_comm.foundPos);
-	object uraniumAntKiller = Factory(botFactory, WingedOrgaShooter, "KillUraniumAnts", false);
-	object nuclearPlant = Build(NuclearPlant);
-	object uraniumCollector = Factory(botFactory, WingedGrabber, "UraniumCollector", false);
+	camerafocus(this);
+	db.powerPlant = Build(PowerPlant, sniff_comm.foundPos);
+	db.killers[0] = Factory(db.botFactory, WingedOrgaShooter, "KillUraniumAnts", false);
+	playmusic("Constructive.ogg", 0);
+	camerafocus(db.killers[0]);
+	db.nuclearPlant = Build(NuclearPlant);
+	db.uraniumCollector = Factory(db.botFactory, WingedGrabber, "UraniumCollector", false);
 	UraniumAntKillerCommunication uranant_comm();
 	while(!uranant_comm.done) wait(1);
 	
 	while(!uranant_comm.back) wait(1);
+	camerafocus(this);
+	playmusic("Hv2.ogg", 1);
 	object item;
 	do {
 		item = radar(NuclearCell);
 	} while(item == null);
 	SafeGoto(item.position);
 	SafeGrab(NuclearCell);
-	SafeGoto(uraniumAntKiller.position);
+	SafeGoto(db.killers[0].position);
 	drop();
 	
-	object thumper = Factory(botFactory, Thumper, "MoveAway", true);
-	object shielder = Factory(botFactory, Shielder, "MoveAway", true);
-	object killers[];
-	killers[0] = uraniumAntKiller;
-	for(int i=1; i<3; i++) killers[i] = Factory(botFactory, WingedOrgaShooter, "MoveAway", true);
+	db.thumper = Factory(db.botFactory, Thumper, "MoveAway", true);
+	db.shielder = Factory(db.botFactory, Shielder, "MoveAway", true);
+	for(int i=1; i<3; i++) db.killers[i] = Factory(db.botFactory, WingedOrgaShooter, "MoveAway", true);
+	playmusic("Humanitarian.ogg", 1);
 	
 	while(true) wait(1); // blink the lights :)
 	
@@ -702,6 +754,7 @@ public object object::FindAntNear(object pos, float maxDist)
 
 public class UraniumAntKillerCommunication
 {
+	public static bool started = false;
 	public static bool done = false;
 	public static bool back = false;
 }
@@ -713,6 +766,7 @@ public void object::KillUraniumAnts()
 	move(-5);
 	
 	UraniumAntKillerCommunication comm();
+	comm.started = true;
 	
 	object item;
 	while((item = FindAntNear(radar(UraniumOre), 75)) != null) {
@@ -721,7 +775,7 @@ public void object::KillUraniumAnts()
 		if(this.position.z < topo(this.position) + 30) jet(0.5);
 		if(this.position.z > topo(this.position) + 40) jet(-0.5);
 		motor(1,1);
-		if(distance(this.position, item.position) < (Max(this.position.z, item.position.z) - Min(this.position.z, item.position.z))*1.5) jet(-1);
+		if(distance(this.position, item.position) < 100) jet(-1);
 		if(distance(this.position, item.position) < 40) {
 			FireAt(item.position);
 		}
@@ -730,8 +784,10 @@ public void object::KillUraniumAnts()
 		wait(0.1);
 	}
 	comm.done = true;
-	MyGoto(space(GetHome()), 1);
+	MyGoto(space(GetHome()), 5);
 	comm.back = true;
+	Database db();
+	db.switchCamera(db.focusedObject);
 	while(this.energyCell == null || this.energyCell.category != NuclearCell) wait(1);
 	Service();
 	
@@ -747,7 +803,7 @@ public void object::UraniumCollector()
 	
 	while(radar(UraniumOre) != null) {
 		object item = radar(UraniumOre);
-		MyGoto(item.position, 2);
+		MyGoto(item.position, 5);
 		SafeGrab(UraniumOre);
 		item = radar(NuclearPlant);
 		MyGoto(item.position, 12);

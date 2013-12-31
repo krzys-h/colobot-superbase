@@ -9,7 +9,10 @@ Instructions name="fglobal.txt"
 HelpFile     name="cbot.txt"
 EndingFile   win=-1 lost=-1
 
-Audio         filename="Humanitarian.ogg"
+//Audio         filename="Humanitarian.ogg"
+CacheAudio    filename="Hv2.ogg"
+CacheAudio    filename="Constructive.ogg"
+CacheAudio    filename="Humanitarian.ogg"
 AmbientColor  air=0.400;0.400;0.400;0.400 water=0.078;0.078;0.078;0.078  // grey
 FogColor      air=0.690;0.690;0.710;0.000 water=0.039;0.392;0.078;0.000  // grey
 VehicleColor  color=0.459;0.620;0.251;0.000  // vert
@@ -21,7 +24,7 @@ ForegroundName image="lens5.png"
 
 TerrainGenerate vision=400.00 depth=1 hard=0.7
 TerrainWind     speed=-2.0;0.0
-TerrainRelief   image="relief22.png" factor=1.0
+TerrainRelief   image="relief22_fixed.png" factor=1.0
 TerrainResource image="res11.png"
 TerrainCloud    image="cloud03.png" level=125.0
 
