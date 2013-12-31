@@ -89,7 +89,7 @@ public void object::MyGoto(point pos, float dist)
 			motor(1,1);
 		}
 		motor(1,1);
-		if(distance(this.position, pos) < 60) jet(-1);
+		if(distance(this.position, pos) < (Max(this.position.z, pos.z) - Min(this.position.z, pos.z)) * 1.5) jet(-1);
 		wait(0.25);
 	}
 	motor(0,0);
@@ -193,23 +193,31 @@ public object object::Build(int cat, point pos)
 	return item;
 }
 
-public object object::Factory(object obj, int cat, string prog)
+public object object::Factory(object obj, int cat, string prog, bool nuclear)
 {
 	object item = GetTitanium(true, false);
 	SafeGoto(item.position);
 	SafeGrab(Titanium);
+	turn(direction(obj.position)); //I Hate Goto Bugs!
+	move(distance(this.position, obj.position)/2); //I Really Hate Goto Bugs!
 	SafeGoto(obj.position);
 	drop();
 	move(-5);
 	point waitpoint = this.position;
 	obj.factory(cat, progfunc(prog));
-	item = GetCell(true, true);
-	SafeGoto(item.position);
-	grab();
-	if(this.load.energyLevel < 1 && radar(PowerStation) != null) {
-		item = radar(PowerStation);
+	if(!nuclear) {
+		item = GetCell(true, true);
 		SafeGoto(item.position);
-		while(this.load.energyLevel < 1);
+		grab();
+		if(this.load.energyLevel < 1 && radar(PowerStation) != null) {
+			item = radar(PowerStation);
+			SafeGoto(item.position);
+			while(this.load.energyLevel < 1);
+		}
+	} else {
+		while((item = radar(NuclearCell)) == null) wait(1);
+		SafeGoto(item.position);
+		SafeGrab(NuclearCell);
 	}
 	SafeGoto(waitpoint);
 	turn(direction(obj.position));
@@ -475,6 +483,50 @@ public bool object::ServiceCheck()
 	return false;
 }
 
+public float object::CalculateAim(point target)
+{
+	float H = target.z - this.position.z; 
+	float L = distance2d(target, this.position); 
+	return atan(H/L); 
+}
+
+public bool object::AimAt(point target)
+{
+	float alfa = CalculateAim(target);
+	float minAngle = -10;
+	float maxAngle = 20;
+	if(this.category == PhazerShooter) {
+		minAngle = -20;
+		maxAngle = 45;
+	}
+	if(alfa > minAngle && alfa < maxAngle) {
+		aim(alfa);
+		return true;
+	}
+	return false;
+}
+
+public bool object::FireAt(point target)
+{
+	if(AimAt(target)) {
+		fire(0.2);
+		return true;
+	}
+	return false;
+}
+
+public float Min(float a, float b)
+{
+	if(b < a) return b;
+	return a;
+}
+
+public float Max(float a, float b)
+{
+	if(b > a) return b;
+	return a;
+}
+
 public point object::GetHome()
 {
 	object item = radar(SpaceShip);
@@ -499,8 +551,8 @@ extern void object::BuildSuperBase()
 	
 	object botFactory = Build(BotFactory);
 	object converter = Build(Converter);
-	object titaniumCollector = Factory(botFactory, LeggedGrabber, "TitaniumCollector");
-	object sniffer = Factory(botFactory, LeggedSniffer, "SnifferProgram");
+	object titaniumCollector = Factory(botFactory, LeggedGrabber, "TitaniumCollector", false);
+	object sniffer = Factory(botFactory, LeggedSniffer, "SnifferProgram", false);
 	SnifferCommunication sniff_comm();
 	sniff_comm.searchHere = GetHome();
 	sniff_comm.requiredSpace = 8;
@@ -517,13 +569,27 @@ extern void object::BuildSuperBase()
 	sniff_comm.searchFor = PowerSpot;
 	while(sniff_comm.searchFor != 0) wait(1);
 	object powerPlant = Build(PowerPlant, sniff_comm.foundPos);
-	//object thumper = Factory(botFactory, Thumper, "MoveAway");
-	//object shielder = Factory(botFactory, Shielder, "MoveAway");
-	object uraniumAntKiller = Factory(botFactory, WingedShooter, "KillUraniumAnts");
+	object uraniumAntKiller = Factory(botFactory, WingedOrgaShooter, "KillUraniumAnts", false);
 	object nuclearPlant = Build(NuclearPlant);
-	object uraniumCollector = Factory(botFactory, WingedGrabber, "UraniumCollector");
+	object uraniumCollector = Factory(botFactory, WingedGrabber, "UraniumCollector", false);
 	UraniumAntKillerCommunication uranant_comm();
 	while(!uranant_comm.done) wait(1);
+	
+	while(!uranant_comm.back) wait(1);
+	object item;
+	do {
+		item = radar(NuclearCell);
+	} while(item == null);
+	SafeGoto(item.position);
+	SafeGrab(NuclearCell);
+	SafeGoto(uraniumAntKiller.position);
+	drop();
+	
+	object thumper = Factory(botFactory, Thumper, "MoveAway", true);
+	object shielder = Factory(botFactory, Shielder, "MoveAway", true);
+	object killers[];
+	killers[0] = uraniumAntKiller;
+	for(int i=1; i<3; i++) killers[i] = Factory(botFactory, WingedOrgaShooter, "MoveAway", true);
 	
 	while(true) wait(1); // blink the lights :)
 	
@@ -637,6 +703,7 @@ public object object::FindAntNear(object pos, float maxDist)
 public class UraniumAntKillerCommunication
 {
 	public static bool done = false;
+	public static bool back = false;
 }
 
 public void object::KillUraniumAnts()
@@ -654,25 +721,26 @@ public void object::KillUraniumAnts()
 		if(this.position.z < topo(this.position) + 30) jet(0.5);
 		if(this.position.z > topo(this.position) + 40) jet(-0.5);
 		motor(1,1);
-		if(distance(this.position, item.position) < 60) {
-			motor(0,0);
-			jet(-1);
-			if(distance(this.position, item.position) < 40) {
-				//TODO: Calculate aim angle
-				aim(0);
-				fire(0.2);
-			}
+		if(distance(this.position, item.position) < (Max(this.position.z, item.position.z) - Min(this.position.z, item.position.z))*1.5) jet(-1);
+		if(distance(this.position, item.position) < 40) {
+			FireAt(item.position);
 		}
 		ServiceCheck();
 		BatteryCheck();
 		wait(0.1);
 	}
 	comm.done = true;
+	MyGoto(space(GetHome()), 1);
+	comm.back = true;
+	while(this.energyCell == null || this.energyCell.category != NuclearCell) wait(1);
+	Service();
+	
+	while(true) wait(1); //TODO: Idz razem z innymi shooterami
 }
 
 public void object::UraniumCollector()
 {
-	NewBot();
+	MoveAway();
 	
 	UraniumAntKillerCommunication uranant_comm();
 	while(!uranant_comm.done) wait(1);
