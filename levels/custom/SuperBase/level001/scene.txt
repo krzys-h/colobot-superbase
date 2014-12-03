@@ -1,9 +1,9 @@
-Title.E text="Base building"
-Title.P text="Budowanie bazy"
+Title text="SuperBase"
+Resume text="Base building bot!"
 // End of level headers translations
 
 MissionFile  version=2
-//Mission      retro=1
+Mission      retro=1
 
 Instructions name="fglobal.txt"
 HelpFile     name="cbot.txt"
@@ -24,7 +24,7 @@ ForegroundName image="lens5.png"
 
 TerrainGenerate vision=400.00 depth=1 hard=0.7
 TerrainWind     speed=-2.0;0.0
-TerrainRelief   image="relief22_fixed.png" factor=1.0
+TerrainRelief   image="%lvl%/relief22_fixed.png" factor=1.0
 TerrainResource image="res11.png"
 TerrainCloud    image="cloud03.png" level=125.0
 
@@ -52,7 +52,7 @@ TerrainCreate
 
 BeginObject
 CreateObject pos= 0.00; 0.00 dir=0.0 type=SpaceShip run=1
-CreateObject pos= 3.25; 0.00 dir=1.0 type=WheeledGrabber select=1 script1="SuperBaza.txt" run=1
+CreateObject pos= 3.25; 0.00 dir=1.0 type=WheeledGrabber select=1 script1="%lvl%/SuperBase.txt" run=1
 CreateObject pos=-3.75;-3.00 dir=0.0 type=Titanium
 CreateObject pos=-2.50;-3.00 dir=0.0 type=Titanium
 CreateObject pos=-0.62;-3.00 dir=0.0 type=Titanium
